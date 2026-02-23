@@ -1,0 +1,208 @@
+//created on: April 2, 2020
+package com.solartis.event.ISO.NoSqlTransaction
+
+//list any import classes here.
+import com.solartis.data.*;
+import java.sql.*;
+import java.util.UUID;
+import java.util.ArrayList;
+import org.json.JSONObject;
+import org.json.JSONArray;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import com.solartis.transaction.*;
+import com.solartis.ejb.sequence.SequenceSessionBean;
+import java.util.Iterator;
+import com.solartis.PlatformExtendedSupport;
+
+
+rule "Create_QuoteV2"
+ruleflow-group "Create_QuoteV2"
+no-loop
+salience 1000
+when
+	requestDetailMap:QuestionHashMap(requestDetailMap.getString("IsCreate_QuoteV2Invoked").equals(""));
+	ruleNumber:QuestionHashMap(ruleNumber.getString("Rule::Create_QuoteV2::Number").equals(""));
+then
+	Connection transactionConnection = null;
+	Connection sysconfigConnection = null;
+	Connection configConnection = null;
+	QuestionHashMap transactionMap  = new QuestionHashMap();
+	ArrayList list = new ArrayList();
+	PlatformExtendedSupport platformExtendedSupport=new PlatformExtendedSupport();
+	String quoteRequestID="";
+	try {
+		requestDetailMap.put("RuleName","Create_QuoteV2");
+		requestDetailMap.put("OutputFileName","Create_Quote.drl");
+    	platformExtendedSupport.initializePerformanceList(requestDetailMap);
+    	platformExtendedSupport.setErrorMessageInformation(requestDetailMap);
+		
+		transactionConnection = (Connection)requestDetailMap.get("Object::Application::InsallConfigConnectionV2");
+		sysconfigConnection = (Connection)requestDetailMap.get("Object::Application::SysConfigTransConnection");
+		configConnection = (Connection)requestDetailMap.get("Object::Application::ISOConfigConnection");
+		requestDetailMap.put("Object::Application::SysConfigTransConnection",sysconfigConnection);
+		
+		JSONDataManager jsonDataManager = new JSONDataManager();		
+		QuestionHashMap ServiceRequestDetailMap = (QuestionHashMap) requestDetailMap.get("Object::ServiceRequestDetail");
+		requestDetailMap.putAll(ServiceRequestDetailMap);
+  		
+  		JSONObject jObject  = new JSONObject(requestDetailMap.getString("RequestJSON"));
+  		list = jsonDataManager.getKeysList("Quote","ADD",configConnection);  		
+  		jObject = jsonDataManager.removeKeys(jObject.toString(), list);
+  		
+        jObject.put("ID",requestDetailMap.get("ID"));
+        jObject.put("QuoteID",requestDetailMap.get("ID"));
+       	if(jObject.has("ServiceRequestDetail")){
+        	jObject.remove("ServiceRequestDetail");
+        }
+           
+        jObject = jsonDataManager.addIds(jObject.toString());
+        Iterator<String> jObjectKeys = jObject.keys();
+			 while(jObjectKeys.hasNext()) {
+					String key = jObjectKeys.next();
+					if(jObject.get(key) instanceof JSONObject)
+			  		{
+						((JSONObject) jObject.get(key)).put("PARENTID", jObject.getString("ID"));
+			  		}
+					else if(jObject.get(key) instanceof JSONArray)
+			  		{
+						JSONArray temparray =new JSONArray(); 
+						temparray=(JSONArray) jObject.get(key);
+						for(int i=0;i<temparray.length();i++) {
+							((JSONObject)((JSONArray) jObject.get(key)).get(i)).put("PARENTID", jObject.getString("ID"));
+					}
+			  }
+		}
+		
+  		requestDetailMap.put("Data",jObject.toString());
+		transactionMap.put("OwnerId",requestDetailMap.getString("Object::OwnerId"));
+		transactionMap.put("Active","Y");
+		transactionMap.put("UserName",requestDetailMap.getString("Object::ServiceRequest::UserName"));
+  		
+  		jsonDataManager.save("QOT_QUOTE_V2",requestDetailMap.get("ID").toString(),requestDetailMap.get("Data").toString(),transactionConnection, transactionMap);
+		//for RequestId Column Upadte
+		quoteRequestID = UUID.randomUUID().toString();
+		requestDetailMap.put("QuoteRequestId", quoteRequestID);
+		jsonDataManager.setColumn("QOT_QUOTE_V2", "REQUEST_ID", quoteRequestID, requestDetailMap.get("ID").toString(),transactionConnection, transactionMap);
+		
+		platformExtendedSupport.updatePerformanceList(requestDetailMap);
+		platformExtendedSupport.updateRuleKey(requestDetailMap);
+		
+	}catch(Exception exception) {
+		platformExtendedSupport.handleCatchBlockExceptionKeys(requestDetailMap,exception);
+		update(requestDetailMap);
+	}
+end
+
+
+rule "Create_Quote"
+ruleflow-group "Create_Quote"
+no-loop
+salience 1000
+when
+	requestDetailMap:QuestionHashMap(requestDetailMap.getString("IsCreate_QuoteInvoked").equals(""));
+	ruleNumber:QuestionHashMap(ruleNumber.getString("Rule::Create_Quote::Number").equals(""));
+then
+	Connection transactionConnection = null;
+	Connection sysconfigConnection = null;
+	Connection configConnection = null;
+	QuestionHashMap transactionMap  = new QuestionHashMap();
+	ArrayList list = new ArrayList();
+	PlatformExtendedSupport platformExtendedSupport=new PlatformExtendedSupport();
+	try {
+		requestDetailMap.put("RuleName","Create_Quote");
+		requestDetailMap.put("OutputFileName","Create_Quote.drl");
+    	platformExtendedSupport.initializePerformanceList(requestDetailMap);
+    	platformExtendedSupport.setErrorMessageInformation(requestDetailMap);
+		
+		
+		transactionConnection = (Connection)requestDetailMap.get("Object::Application::InsallConfigConnectionV2");
+		sysconfigConnection = (Connection)requestDetailMap.get("Object::Application::SysConfigTransConnection");
+		configConnection = (Connection)requestDetailMap.get("Object::Application::ISOConfigConnection");
+		requestDetailMap.put("Object::Application::SysConfigTransConnection",sysconfigConnection);
+		
+		JSONDataManager jsonDataManager = new JSONDataManager();		
+		QuestionHashMap ServiceRequestDetailMap = (QuestionHashMap) requestDetailMap.get("Object::ServiceRequestDetail");
+		requestDetailMap.putAll(ServiceRequestDetailMap);
+  		
+  		JSONObject jObject  = new JSONObject(requestDetailMap.getString("RequestJSON"));
+  		list = jsonDataManager.getKeysList("Quote","ADD",configConnection);  		
+  		jObject = jsonDataManager.removeKeys(jObject.toString(), list);
+  		
+        jObject.put("ID",requestDetailMap.get("ID"));
+        jObject.put("QuoteID",requestDetailMap.get("ID"));
+       	if(jObject.has("ServiceRequestDetail")){
+        	jObject.remove("ServiceRequestDetail");
+        }
+           
+        jObject = jsonDataManager.addIds(jObject.toString());
+        Iterator<String> jObjectKeys = jObject.keys();
+			 while(jObjectKeys.hasNext()) {
+					String key = jObjectKeys.next();
+					if(jObject.get(key) instanceof JSONObject)
+			  		{
+						((JSONObject) jObject.get(key)).put("PARENTID", jObject.getString("ID"));
+			  		}
+					else if(jObject.get(key) instanceof JSONArray)
+			  		{
+						JSONArray temparray =new JSONArray(); 
+						temparray=(JSONArray) jObject.get(key);
+						for(int i=0;i<temparray.length();i++) {
+							((JSONObject)((JSONArray) jObject.get(key)).get(i)).put("PARENTID", jObject.getString("ID"));
+					}
+			  }
+		}
+		if(jObject.has("SelectedSublines")){
+			jObject.remove("SelectedSublines");
+		}
+  		requestDetailMap.put("Data",jObject.toString());
+		transactionMap.put("OwnerId",requestDetailMap.getString("Object::OwnerId"));
+		transactionMap.put("Active","Y");
+		transactionMap.put("UserName",requestDetailMap.getString("Object::ServiceRequest::UserName"));
+  		
+  		jsonDataManager.save("QOT_QUOTE_V2",requestDetailMap.get("ID").toString(),requestDetailMap.get("Data").toString(),transactionConnection, transactionMap);
+		platformExtendedSupport.updatePerformanceList(requestDetailMap);
+		platformExtendedSupport.updateRuleKey(requestDetailMap);
+		
+	}catch(Exception exception) {
+		platformExtendedSupport.handleCatchBlockExceptionKeys(requestDetailMap,exception);
+		update(requestDetailMap);
+	}
+end
+
+
+
+
+rule "Generate_QuoteId"
+ruleflow-group "Generate_QuoteId"
+no-loop
+salience 1000
+when
+	requestDetailMap:QuestionHashMap(requestDetailMap.getString("IsGenerate_QuoteIdInvoked").equals(""));
+	ruleNumber:QuestionHashMap(ruleNumber.getString("Rule::Generate_QuoteId::Number").equals(""));
+then
+	
+	String guid = "";
+	PlatformExtendedSupport platformExtendedSupport=new PlatformExtendedSupport();
+	try {
+		requestDetailMap.put("RuleName","Generate_QuoteId");
+		requestDetailMap.put("OutputFileName","Create_Quote.drl");
+    	platformExtendedSupport.initializePerformanceList(requestDetailMap);
+    	platformExtendedSupport.setErrorMessageInformation(requestDetailMap);
+		
+		guid = UUID.randomUUID().toString();
+		requestDetailMap.put("GenerateQuoteId_Check_ID",guid);
+		requestDetailMap.put("ID",guid);
+		requestDetailMap.put("ObjectID",guid);
+		//set details for Log history table save
+		requestDetailMap.put("ROOTID",guid);
+		
+		platformExtendedSupport.updatePerformanceList(requestDetailMap);
+		platformExtendedSupport.updateRuleKey(requestDetailMap);
+
+	}catch(Exception exception) {
+		platformExtendedSupport.handleCatchBlockExceptionKeys(requestDetailMap,exception);
+		update(requestDetailMap);
+	}
+end
+
